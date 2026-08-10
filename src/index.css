@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .bg-pink-signature {
+    background-color: #D95D7D;
+  }
+  .bg-pink-subtle {
+    background-color: #FDF0F3;
+  }
+  .border-pink-signature {
+    border-color: #D95D7D;
+  }
+  .border-pink-subtle {
+    border-color: #E8B8C6;
+  }
+  .text-pink-signature {
+    color: #D95D7D;
+  }
+}

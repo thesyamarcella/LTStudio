@@ -1,0 +1,6 @@
+{
+  "name": "LTStudio",
+  "description": "A personal ecosystem of software built around how life actually flows.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
