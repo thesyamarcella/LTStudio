@@ -24,7 +24,7 @@ export default function App() {
 
         <main>
           {/* Hero Section */}
-          <Hero />
+          <Hero onOpenProductDetail={(product) => setSelectedProduct(product)} />
 
           {/* The LTStudio Mantra */}
           <Mantra />
