@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import * as THREE from 'three';
-import { ArrowRight, Activity, Sparkles, Filter } from 'lucide-react';
+import { ArrowRight, Activity, Sparkles, Filter, RotateCcw, ZoomIn, ZoomOut, Move } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { Product } from '../types';
 
@@ -45,7 +45,7 @@ const NODES_CONFIG: Node3DData[] = [
     role: 'Central Household Hub',
     tagline: 'One home. One source of truth.',
     status: 'Daily Driver',
-    position: new THREE.Vector3(-2.8, 0.8, 0.5),
+    position: new THREE.Vector3(-3.0, 0.9, 0.8),
     connectedTo: ['everafter', 'our', 'littlebetter', 'dayone'],
     fallback2D: { x: 30, y: 38 }
   },
@@ -56,7 +56,7 @@ const NODES_CONFIG: Node3DData[] = [
     role: 'Milestone Event Management',
     tagline: 'Wedding & Event Engine',
     status: 'Daily Driver',
-    position: new THREE.Vector3(-4.4, 2.2, -0.6),
+    position: new THREE.Vector3(-4.6, 2.3, -0.6),
     connectedTo: ['saturumah'],
     fallback2D: { x: 14, y: 22 }
   },
@@ -67,7 +67,7 @@ const NODES_CONFIG: Node3DData[] = [
     role: 'Family Archive & Vault',
     tagline: 'Family Document Repository',
     status: 'Live',
-    position: new THREE.Vector3(-4.8, -0.8, 0.2),
+    position: new THREE.Vector3(-4.9, -0.7, 0.3),
     connectedTo: ['saturumah'],
     fallback2D: { x: 12, y: 55 }
   },
@@ -78,7 +78,7 @@ const NODES_CONFIG: Node3DData[] = [
     role: 'Health & Wellness Log',
     tagline: 'Personal Medical Core',
     status: 'Daily Driver',
-    position: new THREE.Vector3(-2.2, -1.9, 0.8),
+    position: new THREE.Vector3(-2.4, -2.0, 0.9),
     connectedTo: ['saturumah', 'getaway'],
     fallback2D: { x: 26, y: 76 }
   },
@@ -89,7 +89,7 @@ const NODES_CONFIG: Node3DData[] = [
     role: 'Travel Contextualizer',
     tagline: 'Itinerary & Route Engine',
     status: 'In Development',
-    position: new THREE.Vector3(-3.9, -2.8, -0.4),
+    position: new THREE.Vector3(-4.2, -2.9, -0.5),
     connectedTo: ['littlebetter'],
     fallback2D: { x: 10, y: 86 }
   },
@@ -101,7 +101,7 @@ const NODES_CONFIG: Node3DData[] = [
     role: 'Personal Productivity',
     tagline: 'Context-Aware Workspace',
     status: 'In Development',
-    position: new THREE.Vector3(2.8, 1.2, 0.4),
+    position: new THREE.Vector3(3.0, 1.3, 0.6),
     connectedTo: ['forge', 'saturumah'],
     fallback2D: { x: 72, y: 35 }
   },
@@ -112,7 +112,7 @@ const NODES_CONFIG: Node3DData[] = [
     role: 'Studio-Building Layer',
     tagline: 'Independent Studio Infrastructure',
     status: 'Future',
-    position: new THREE.Vector3(4.5, -0.3, -0.5),
+    position: new THREE.Vector3(4.7, -0.2, -0.5),
     connectedTo: ['dayone', 'align'],
     fallback2D: { x: 88, y: 52 }
   },
@@ -123,7 +123,7 @@ const NODES_CONFIG: Node3DData[] = [
     role: 'Organizational Alignment',
     tagline: 'Strategic Governance Engine',
     status: 'Future',
-    position: new THREE.Vector3(3.6, -2.2, 0.3),
+    position: new THREE.Vector3(3.8, -2.3, 0.4),
     connectedTo: ['forge'],
     fallback2D: { x: 78, y: 78 }
   }
@@ -153,17 +153,39 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
   const { language, products } = useLanguage();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'Personal' | 'Professional'>('all');
+  const activeFilterRef = useRef<'all' | 'Personal' | 'Professional'>('all');
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>('saturumah');
-  const [screenCoords, setScreenCoords] = useState<{ [id: string]: { x: number; y: number; visible: boolean } }>({});
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [screenCoords, setScreenCoords] = useState<{
+    [id: string]: { x: number; y: number; visible: boolean; depth: number };
+  }>({});
   const [webglSupported, setWebglSupported] = useState<boolean>(true);
   const [isReducedMotion, setIsReducedMotion] = useState<boolean>(false);
+  const [isDraggingState, setIsDraggingState] = useState<boolean>(false);
 
-  // Mouse / Pointer tracking for camera parallax
-  const pointerRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0 });
+  // Sync ref with activeFilter for the 60fps render loop
+  useEffect(() => {
+    activeFilterRef.current = activeFilter;
+    // If a selected node is now filtered out (and not Core), unselect it
+    if (selectedNodeId && activeFilter !== 'all') {
+      const node = NODES_CONFIG.find((n) => n.id === selectedNodeId);
+      if (node && node.category !== 'Core' && node.category !== activeFilter) {
+        setSelectedNodeId(null);
+      }
+    }
+  }, [activeFilter, selectedNodeId]);
+
+  // Drag & Orbit state refs
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const totalDragDistanceRef = useRef(0);
+  const rotationRef = useRef({ x: 0.1, y: 0, targetX: 0.1, targetY: 0 });
+  const zoomRef = useRef({ distance: 11.5, targetDistance: 11.5 });
+  const autoRotateRef = useRef(true);
 
   // References for Three.js objects
   const sceneRef = useRef<THREE.Scene | null>(null);
+  const ecosystemGroupRef = useRef<THREE.Group | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const meshesMapRef = useRef<{ [id: string]: THREE.Group }>({});
@@ -181,7 +203,8 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
 
   // Selected product object
   const selectedNode = useMemo(() => {
-    return NODES_CONFIG.find((n) => n.id === selectedNodeId) || NODES_CONFIG[0];
+    if (!selectedNodeId) return null;
+    return NODES_CONFIG.find((n) => n.id === selectedNodeId) || null;
   }, [selectedNodeId]);
 
   const selectedProductObj = useMemo(() => {
@@ -209,14 +232,170 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
     return set;
   }, [activeFocusId]);
 
-  // Handle Mouse / Touch move for Parallax
+  // Reset view to default orientation
+  const handleResetView = useCallback(() => {
+    rotationRef.current.targetX = 0.1;
+    rotationRef.current.targetY = 0;
+    rotationRef.current.x = 0.1;
+    rotationRef.current.y = 0;
+    zoomRef.current.targetDistance = 11.5;
+    zoomRef.current.distance = 11.5;
+    autoRotateRef.current = true;
+    setSelectedNodeId(null);
+    setHoveredNodeId(null);
+    setActiveFilter('all');
+  }, []);
+
+  const handleZoom = useCallback((delta: number) => {
+    zoomRef.current.targetDistance = Math.min(18, Math.max(6.0, zoomRef.current.targetDistance + delta));
+    autoRotateRef.current = false;
+  }, []);
+
+  // Pointer event handlers for hand dragging & orbit
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    // CRITICAL: Do NOT start drag or capture pointer if clicking on buttons or interactive elements
+    if (
+      target.tagName === 'BUTTON' ||
+      target.closest('button') ||
+      target.closest('a') ||
+      target.closest('[data-no-drag]') ||
+      target.closest('.interactive-control') ||
+      target.closest('.node-badge')
+    ) {
+      return;
+    }
+
+    // Only drag with primary mouse button or touch
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+    isDraggingRef.current = true;
+    setIsDraggingState(true);
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    totalDragDistanceRef.current = 0;
+    autoRotateRef.current = false;
+
+    if (containerRef.current) {
+      try {
+        containerRef.current.setPointerCapture(e.pointerId);
+      } catch {
+        // Safe fallback
+      }
+    }
+  }, []);
+
+  const selectedNodeIdRef = useRef<string | null>(selectedNodeId);
+  useEffect(() => {
+    selectedNodeIdRef.current = selectedNodeId;
+  }, [selectedNodeId]);
+
+  const hoveredNodeIdRef = useRef<string | null>(hoveredNodeId);
+  useEffect(() => {
+    hoveredNodeIdRef.current = hoveredNodeId;
+  }, [hoveredNodeId]);
+
+  // Handle pointer move for rotation and hover raycasting
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    const y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
-    pointerRef.current.targetX = x * 0.8;
-    pointerRef.current.targetY = y * 0.5;
+    if (isDraggingRef.current) {
+      const deltaX = e.clientX - dragStartRef.current.x;
+      const deltaY = e.clientY - dragStartRef.current.y;
+      totalDragDistanceRef.current += Math.hypot(deltaX, deltaY);
+
+      dragStartRef.current = { x: e.clientX, y: e.clientY };
+
+      // Update target rotations (orbit around Y and X)
+      rotationRef.current.targetY += deltaX * 0.007;
+      rotationRef.current.targetX += deltaY * 0.005;
+
+      // Clamp pitch angle so the scene doesn't flip upside down
+      rotationRef.current.targetX = Math.max(-0.65, Math.min(0.65, rotationRef.current.targetX));
+    } else {
+      // 3D Raycaster Hover check
+      if (cameraRef.current && ecosystemGroupRef.current && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+          ((e.clientX - rect.left) / rect.width) * 2 - 1,
+          -((e.clientY - rect.top) / rect.height) * 2 + 1
+        );
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, cameraRef.current);
+        const intersects = raycaster.intersectObjects(ecosystemGroupRef.current.children, true);
+        let hitNodeId: string | null = null;
+        for (const hit of intersects) {
+          let current: THREE.Object3D | null = hit.object;
+          while (current && current !== ecosystemGroupRef.current) {
+            if (current.userData && current.userData.nodeId) {
+              hitNodeId = current.userData.nodeId;
+              break;
+            }
+            current = current.parent;
+          }
+          if (hitNodeId) break;
+        }
+        setHoveredNodeId(hitNodeId);
+      }
+    }
+  }, []);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      setIsDraggingState(false);
+
+      if (containerRef.current && containerRef.current.hasPointerCapture(e.pointerId)) {
+        try {
+          containerRef.current.releasePointerCapture(e.pointerId);
+        } catch {
+          // Safe fallback
+        }
+      }
+
+      // If it was a click (minimal drag distance), perform 3D Raycasting to inspect node
+      if (totalDragDistanceRef.current < 8) {
+        if (cameraRef.current && ecosystemGroupRef.current && containerRef.current) {
+          const rect = containerRef.current.getBoundingClientRect();
+          const mouse = new THREE.Vector2(
+            ((e.clientX - rect.left) / rect.width) * 2 - 1,
+            -((e.clientY - rect.top) / rect.height) * 2 + 1
+          );
+
+          const raycaster = new THREE.Raycaster();
+          raycaster.setFromCamera(mouse, cameraRef.current);
+          const intersects = raycaster.intersectObjects(ecosystemGroupRef.current.children, true);
+
+          let hitNodeId: string | null = null;
+          for (const hit of intersects) {
+            let current: THREE.Object3D | null = hit.object;
+            while (current && current !== ecosystemGroupRef.current) {
+              if (current.userData && current.userData.nodeId) {
+                hitNodeId = current.userData.nodeId;
+                break;
+              }
+              current = current.parent;
+            }
+            if (hitNodeId) break;
+          }
+
+          if (hitNodeId) {
+            autoRotateRef.current = false;
+            setSelectedNodeId((prev) => (prev === hitNodeId ? null : hitNodeId));
+          } else {
+            const target = e.target as HTMLElement;
+            // Only clear selection if clicking on empty background
+            if (target.tagName === 'CANVAS' || target === containerRef.current) {
+              setSelectedNodeId(null);
+            }
+          }
+        }
+      }
+    }
+  }, []);
+
+  // Wheel zoom handler
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const zoomDelta = e.deltaY * 0.006;
+    zoomRef.current.targetDistance = Math.min(18, Math.max(6.0, zoomRef.current.targetDistance + zoomDelta));
   }, []);
 
   // Initialize Three.js 3D Scene safely
@@ -233,6 +412,7 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
     let renderer: THREE.WebGLRenderer | null = null;
     let scene: THREE.Scene | null = null;
     let camera: THREE.PerspectiveCamera | null = null;
+    let ecosystemGroup: THREE.Group | null = null;
 
     try {
       const width = container.clientWidth || 600;
@@ -241,14 +421,14 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
       // 1. Scene
       scene = new THREE.Scene();
       sceneRef.current = scene;
-      scene.background = new THREE.Color(0xf9f8f6); // Warm Ivory matching LTStudio bg
+      scene.background = new THREE.Color(0xf9f8f6); // Warm Ivory matching LTStudio background
 
       // 2. Camera
-      camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
-      camera.position.set(0, 0, 11.5);
+      camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+      camera.position.set(0, 0, zoomRef.current.distance);
       cameraRef.current = camera;
 
-      // 3. Renderer inside try/catch
+      // 3. Renderer
       renderer = new THREE.WebGLRenderer({
         canvas,
         antialias: true,
@@ -260,70 +440,80 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
       rendererRef.current = renderer;
 
       // 4. Lights
-      const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+      const ambientLight = new THREE.AmbientLight(0xffffff, 1.3);
       scene.add(ambientLight);
 
-      const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
-      dirLight1.position.set(5, 10, 7);
+      const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.85);
+      dirLight1.position.set(6, 12, 8);
       scene.add(dirLight1);
 
-      const dirLight2 = new THREE.DirectionalLight(0xd95d7d, 0.35); // Muted rose backlight
-      dirLight2.position.set(-5, -5, -5);
+      const dirLight2 = new THREE.DirectionalLight(0xd95d7d, 0.4); // Muted rose rim light
+      dirLight2.position.set(-6, -6, -4);
       scene.add(dirLight2);
 
-      // 5. Build 3D Nodes
+      // 5. Ecosystem Main Group (Rotated during hand drag)
+      ecosystemGroup = new THREE.Group();
+      ecosystemGroupRef.current = ecosystemGroup;
+      scene.add(ecosystemGroup);
+
+      // 6. Build 3D Nodes
       const meshesMap: { [id: string]: THREE.Group } = {};
 
       NODES_CONFIG.forEach((nodeData) => {
         const group = new THREE.Group();
         group.position.copy(nodeData.position);
+        group.userData = { nodeId: nodeData.id };
 
         if (nodeData.id === 'ltstudio') {
           // Central LTStudio Core Architecture
-          const coreGeo = new THREE.OctahedronGeometry(0.7, 0);
+          const coreGeo = new THREE.OctahedronGeometry(0.75, 0);
           const coreMat = new THREE.MeshStandardMaterial({
             color: 0x1a1a1a,
-            roughness: 0.3,
-            metalness: 0.8
+            roughness: 0.25,
+            metalness: 0.85
           });
           const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+          coreMesh.userData = { nodeId: nodeData.id };
           group.add(coreMesh);
 
           // Concentric Translucent Outer Ring
-          const ringGeo = new THREE.TorusGeometry(1.1, 0.02, 16, 64);
+          const ringGeo = new THREE.TorusGeometry(1.15, 0.02, 16, 64);
           const ringMat = new THREE.MeshBasicMaterial({
             color: 0xd95d7d,
             transparent: true,
-            opacity: 0.6
+            opacity: 0.7
           });
           const ringMesh = new THREE.Mesh(ringGeo, ringMat);
           ringMesh.rotation.x = Math.PI / 2.5;
+          ringMesh.userData = { nodeId: nodeData.id };
           group.add(ringMesh);
 
           // Second subtle outer ring
-          const ringGeo2 = new THREE.TorusGeometry(1.4, 0.015, 16, 64);
+          const ringGeo2 = new THREE.TorusGeometry(1.5, 0.015, 16, 64);
           const ringMat2 = new THREE.MeshBasicMaterial({
             color: 0x1a1a1a,
             transparent: true,
-            opacity: 0.2
+            opacity: 0.25
           });
           const ringMesh2 = new THREE.Mesh(ringGeo2, ringMat2);
           ringMesh2.rotation.y = Math.PI / 3;
+          ringMesh2.userData = { nodeId: nodeData.id };
           group.add(ringMesh2);
         } else {
           // Minimalist Floating Architectural Block for Products
           const isHub = nodeData.id === 'saturumah' || nodeData.id === 'dayone';
-          const widthSize = isHub ? 0.85 : 0.7;
-          const heightSize = isHub ? 0.5 : 0.4;
-          const depthSize = 0.2;
+          const widthSize = isHub ? 0.9 : 0.75;
+          const heightSize = isHub ? 0.55 : 0.45;
+          const depthSize = 0.25;
 
           const blockGeo = new THREE.BoxGeometry(widthSize, heightSize, depthSize);
           const blockMat = new THREE.MeshStandardMaterial({
             color: isHub ? 0x1a1a1a : 0xf4f3f0,
-            roughness: 0.4,
-            metalness: isHub ? 0.5 : 0.1
+            roughness: 0.35,
+            metalness: isHub ? 0.6 : 0.1
           });
           const blockMesh = new THREE.Mesh(blockGeo, blockMat);
+          blockMesh.userData = { nodeId: nodeData.id };
           group.add(blockMesh);
 
           // Border outline frame
@@ -331,30 +521,39 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
           const lineMat = new THREE.LineBasicMaterial({
             color: isHub ? 0xd95d7d : 0x1a1a1a,
             transparent: true,
-            opacity: isHub ? 0.9 : 0.3
+            opacity: isHub ? 0.95 : 0.35
           });
           const wireframe = new THREE.LineSegments(edges, lineMat);
+          wireframe.userData = { nodeId: nodeData.id };
           group.add(wireframe);
 
           // Indicator status dot
-          const dotGeo = new THREE.SphereGeometry(0.04, 12, 12);
+          const dotGeo = new THREE.SphereGeometry(0.045, 12, 12);
           const dotMat = new THREE.MeshBasicMaterial({
-            color: nodeData.status === 'Daily Driver' || nodeData.status === 'Live' ? 0xd95d7d : 0xa0a0a0
+            color: nodeData.status === 'Daily Driver' || nodeData.status === 'Live' ? 0xd95d7d : 0x888888
           });
           const dotMesh = new THREE.Mesh(dotGeo, dotMat);
-          dotMesh.position.set(widthSize / 2 - 0.08, heightSize / 2 - 0.08, depthSize / 2 + 0.01);
+          dotMesh.position.set(widthSize / 2 - 0.09, heightSize / 2 - 0.09, depthSize / 2 + 0.01);
+          dotMesh.userData = { nodeId: nodeData.id };
           group.add(dotMesh);
         }
 
-        scene!.add(group);
+        // Invisible generous click hit-box to make clicking 3D nodes effortless
+        const hitBoxGeo = new THREE.SphereGeometry(0.85, 8, 8);
+        const hitBoxMat = new THREE.MeshBasicMaterial({ visible: false });
+        const hitBox = new THREE.Mesh(hitBoxGeo, hitBoxMat);
+        hitBox.userData = { nodeId: nodeData.id };
+        group.add(hitBox);
+
+        ecosystemGroup!.add(group);
         meshesMap[nodeData.id] = group;
       });
       meshesMapRef.current = meshesMap;
 
-      // 6. Build Interconnected Curves & Connections
+      // 7. Build Interconnected Curves & Connections
       const connections: ConnectionData[] = [];
       const lineGroup = new THREE.Group();
-      scene.add(lineGroup);
+      ecosystemGroup.add(lineGroup);
 
       const addedPairs = new Set<string>();
 
@@ -381,9 +580,9 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
           const isPrimary = (node.id === 'saturumah' && targetId === 'dayone') || node.id === 'ltstudio';
 
           const lineMat = new THREE.LineBasicMaterial({
-            color: isPrimary ? 0xd95d7d : 0xc8c7c2,
+            color: isPrimary ? 0xd95d7d : 0xb5b4ae,
             transparent: true,
-            opacity: isPrimary ? 0.6 : 0.3
+            opacity: isPrimary ? 0.75 : 0.4
           });
 
           const lineMesh = new THREE.Line(curveGeo, lineMat);
@@ -392,8 +591,8 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
           const particleCount = isPrimary ? 5 : 3;
           const particles = Array.from({ length: particleCount }).map((_, i) => ({
             progress: i / particleCount,
-            speed: 0.002 + Math.random() * 0.001,
-            size: isPrimary ? 0.05 : 0.04
+            speed: 0.0025 + Math.random() * 0.001,
+            size: isPrimary ? 0.06 : 0.045
           }));
 
           connections.push({
@@ -407,7 +606,7 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
       });
       connectionsRef.current = connections;
 
-      // 7. Particle Geometry for Flowing Data
+      // 8. Particle Geometry for Flowing Data
       const totalParticles = connections.reduce((sum, c) => sum + c.particles.length, 0);
       const particlePositions = new Float32Array(totalParticles * 3);
       const particleGeo = new THREE.BufferGeometry();
@@ -415,15 +614,15 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
 
       const particleMat = new THREE.PointsMaterial({
         color: 0xd95d7d,
-        size: 0.08,
+        size: 0.09,
         transparent: true,
-        opacity: 0.85
+        opacity: 0.9
       });
 
       const particleSystem = new THREE.Points(particleGeo, particleMat);
-      scene.add(particleSystem);
+      ecosystemGroup.add(particleSystem);
 
-      // 8. Resize Handler
+      // 9. Resize Handler
       const handleResize = () => {
         if (!containerRef.current || !rendererRef.current || !cameraRef.current) return;
         const w = containerRef.current.clientWidth;
@@ -435,7 +634,7 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
 
       window.addEventListener('resize', handleResize);
 
-      // 9. Animation Loop
+      // 10. Animation Loop
       const clock = new THREE.Clock();
 
       const animate = () => {
@@ -443,29 +642,53 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
 
         const elapsedTime = clock.getElapsedTime();
 
-        // Pointer lerp
-        pointerRef.current.x += (pointerRef.current.targetX - pointerRef.current.x) * 0.05;
-        pointerRef.current.y += (pointerRef.current.targetY - pointerRef.current.y) * 0.05;
-
-        // Camera Motion
-        if (cameraRef.current && !isReducedMotion) {
-          cameraRef.current.position.x = pointerRef.current.x * 1.2;
-          cameraRef.current.position.y = pointerRef.current.y * 0.8;
-          cameraRef.current.lookAt(0, 0, 0);
+        // Smooth zoom lerp
+        zoomRef.current.distance += (zoomRef.current.targetDistance - zoomRef.current.distance) * 0.1;
+        if (cameraRef.current) {
+          cameraRef.current.position.z = zoomRef.current.distance;
         }
 
-        // Rotate Central Core Node slowly
+        // Auto gentle ambient rotation if not currently dragging
+        if (autoRotateRef.current && !isDraggingRef.current && !isReducedMotion) {
+          rotationRef.current.targetY += 0.0012;
+        }
+
+        // Smooth rotation lerp for the entire ecosystem group
+        rotationRef.current.x += (rotationRef.current.targetX - rotationRef.current.x) * 0.1;
+        rotationRef.current.y += (rotationRef.current.targetY - rotationRef.current.y) * 0.1;
+
+        if (ecosystemGroupRef.current) {
+          ecosystemGroupRef.current.rotation.x = rotationRef.current.x;
+          ecosystemGroupRef.current.rotation.y = rotationRef.current.y;
+        }
+
+        // Update 3D mesh scales based on domain filter smoothly
+        NODES_CONFIG.forEach((node) => {
+          const mesh = meshesMapRef.current[node.id];
+          if (mesh) {
+            const isFiltered =
+              activeFilterRef.current === 'all' ||
+              node.category === 'Core' ||
+              node.category === activeFilterRef.current;
+            const targetScale = isFiltered ? 1.0 : 0.35;
+            mesh.scale.x += (targetScale - mesh.scale.x) * 0.12;
+            mesh.scale.y += (targetScale - mesh.scale.y) * 0.12;
+            mesh.scale.z += (targetScale - mesh.scale.z) * 0.12;
+          }
+        });
+
+        // Rotate Central Core Node inner rings
         if (meshesMapRef.current['ltstudio'] && !isReducedMotion) {
-          meshesMapRef.current['ltstudio'].rotation.y = elapsedTime * 0.25;
-          meshesMapRef.current['ltstudio'].rotation.x = Math.sin(elapsedTime * 0.3) * 0.1;
+          meshesMapRef.current['ltstudio'].rotation.y = elapsedTime * 0.35;
+          meshesMapRef.current['ltstudio'].rotation.z = Math.sin(elapsedTime * 0.4) * 0.12;
         }
 
-        // Gentle floating hover motion for nodes
+        // Gentle floating vertical motion for nodes
         if (!isReducedMotion) {
           NODES_CONFIG.forEach((node, idx) => {
             const mesh = meshesMapRef.current[node.id];
             if (mesh && node.id !== 'ltstudio') {
-              mesh.position.y = node.position.y + Math.sin(elapsedTime * 1.2 + idx) * 0.05;
+              mesh.position.y = node.position.y + Math.sin(elapsedTime * 1.3 + idx * 1.1) * 0.05;
             }
           });
         }
@@ -486,23 +709,33 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
         });
         posAttr.needsUpdate = true;
 
-        // Project 3D positions to 2D Screen Coordinates for HTML Labels
-        if (cameraRef.current && containerRef.current) {
+        // Project 3D World Positions of Nodes onto 2D Screen Coordinates for HTML Labels
+        if (cameraRef.current && containerRef.current && ecosystemGroupRef.current) {
           const w = containerRef.current.clientWidth;
           const h = containerRef.current.clientHeight;
-          const newCoords: { [id: string]: { x: number; y: number; visible: boolean } } = {};
+          const newCoords: {
+            [id: string]: { x: number; y: number; visible: boolean; depth: number };
+          } = {};
+
+          const worldPos = new THREE.Vector3();
 
           NODES_CONFIG.forEach((node) => {
             const mesh = meshesMapRef.current[node.id];
-            const pos = mesh ? mesh.position : node.position;
-            const vector = pos.clone();
-            vector.project(cameraRef.current!);
+            if (mesh) {
+              mesh.getWorldPosition(worldPos);
+            } else {
+              worldPos.copy(node.position).applyEuler(ecosystemGroupRef.current!.rotation);
+            }
 
-            const x = (vector.x * 0.5 + 0.5) * w;
-            const y = (-(vector.y * 0.5) + 0.5) * h;
-            const visible = vector.z < 1;
+            const projected = worldPos.clone().project(cameraRef.current!);
 
-            newCoords[node.id] = { x, y, visible };
+            const x = (projected.x * 0.5 + 0.5) * w;
+            const y = (-(projected.y * 0.5) + 0.5) * h;
+            // Visible as long as it's within the camera view volume
+            const visible = projected.z < 1;
+            const depth = projected.z;
+
+            newCoords[node.id] = { x, y, visible, depth };
           });
 
           setScreenCoords(newCoords);
@@ -527,35 +760,38 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
     }
   }, [isReducedMotion]);
 
-  // Handle clicks on nodes
-  const handleNodeClick = (nodeId: string) => {
-    setSelectedNodeId(nodeId);
+  // Handle clicks on nodes (from HTML badges)
+  const handleNodeClick = (nodeId: string, e?: React.MouseEvent | React.PointerEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    autoRotateRef.current = false;
+    setSelectedNodeId((prev) => (prev === nodeId ? null : nodeId));
   };
 
   return (
     <div
       ref={containerRef}
+      onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      className="relative w-full h-[520px] sm:h-[600px] lg:h-[650px] bg-[#F9F8F6] border border-[#1A1A1A] overflow-hidden select-none shadow-xs group"
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onWheel={handleWheel}
+      className={`relative w-full h-[520px] sm:h-[600px] lg:h-[650px] bg-[#F9F8F6] border border-[#1A1A1A] overflow-hidden select-none shadow-xs group touch-none ${
+        isDraggingState ? 'cursor-grabbing' : hoveredNodeId ? 'cursor-pointer' : 'cursor-grab'
+      }`}
     >
-      {/* Background Subtle Grid */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#1A1A1A_1px,transparent_1px)] [background-size:20px_20px]"></div>
+      {/* Background Subtle Architectural Grid */}
+      <div className="absolute inset-0 opacity-[0.035] pointer-events-none bg-[radial-gradient(#1A1A1A_1px,transparent_1px)] [background-size:20px_20px]"></div>
       <div className="absolute top-0 right-0 w-96 h-96 bg-radial from-[#D95D7D]/10 via-transparent to-transparent pointer-events-none rounded-full blur-3xl"></div>
 
       {/* 3D WebGL Canvas or 2D Vector SVG Graph Fallback */}
       {webglSupported ? (
-        <canvas ref={canvasRef} className="w-full h-full block cursor-grab active:cursor-grabbing" />
+        <canvas ref={canvasRef} className="w-full h-full block" />
       ) : (
         /* Fallback 2D Vector Architecture Living Diagram */
         <div className="w-full h-full relative overflow-hidden flex items-center justify-center p-6">
           <svg className="absolute inset-0 w-full h-full pointer-events-none">
-            <defs>
-              <linearGradient id="roseLine" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#D95D7D" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#1A1A1A" stopOpacity="0.3" />
-              </linearGradient>
-            </defs>
-
             {/* Connecting Curved Lines between Nodes in 2D */}
             {NODES_CONFIG.map((node) =>
               node.connectedTo.map((targetId) => {
@@ -570,8 +806,8 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
                     <path
                       d={`M ${node.fallback2D.x}% ${node.fallback2D.y}% Q ${(node.fallback2D.x + targetNode.fallback2D.x) / 2}% ${(node.fallback2D.y + targetNode.fallback2D.y) / 2 - 8}% ${targetNode.fallback2D.x}% ${targetNode.fallback2D.y}%`}
                       fill="none"
-                      stroke={isConnected ? '#D95D7D' : '#E5E5E2'}
-                      strokeWidth={isConnected ? 2 : 1}
+                      stroke={isConnected ? '#D95D7D' : '#D0CFCA'}
+                      strokeWidth={isConnected ? 2.5 : 1}
                       strokeDasharray={isConnected ? 'none' : '4 4'}
                       className="transition-colors duration-300"
                     />
@@ -588,27 +824,34 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
             const isHovered = hoveredNodeId === node.id;
             const isConnected = connectedNodeIds.has(node.id);
 
-            if (activeFilter !== 'all' && node.category !== 'Core' && node.category !== activeFilter) {
-              return null;
-            }
-
-            const isDimmed =
-              (activeFocusId && !isConnected) ||
-              (activeFilter !== 'all' && node.category !== 'Core' && node.category !== activeFilter);
+            const matchesFilter =
+              activeFilter === 'all' || node.category === 'Core' || node.category === activeFilter;
 
             return (
               <div
                 key={node.id}
+                data-no-drag="true"
                 style={{
                   left: `${node.fallback2D.x}%`,
                   top: `${node.fallback2D.y}%`,
                   transform: 'translate(-50%, -50%)'
                 }}
+                onPointerDown={(e) => e.stopPropagation()}
                 onMouseEnter={() => setHoveredNodeId(node.id)}
                 onMouseLeave={() => setHoveredNodeId(null)}
-                onClick={() => handleNodeClick(node.id)}
-                className={`absolute z-10 cursor-pointer transition-all duration-200 ${
-                  isDimmed ? 'opacity-30 scale-95' : 'opacity-100 scale-100'
+                onClick={(e) => handleNodeClick(node.id, e)}
+                className={`absolute z-10 cursor-pointer transition-all duration-200 node-badge ${
+                  !matchesFilter
+                    ? 'opacity-25 pointer-events-none scale-90'
+                    : isSelected
+                    ? 'opacity-100 scale-105 z-30'
+                    : isHovered
+                    ? 'opacity-100 scale-105 z-20'
+                    : isConnected && activeFocusId
+                    ? 'opacity-100 scale-100 z-20'
+                    : activeFocusId
+                    ? 'opacity-70 scale-95 z-10'
+                    : 'opacity-100 scale-100 z-10'
                 }`}
               >
                 <div
@@ -616,12 +859,12 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
                     isCore
                       ? 'bg-[#1A1A1A] text-[#F9F8F6] border-[#D95D7D]'
                       : isSelected
-                      ? 'bg-[#1A1A1A] text-[#F9F8F6] border-[#D95D7D] ring-2 ring-[#D95D7D]/30'
+                      ? 'bg-[#1A1A1A] text-[#F9F8F6] border-[#D95D7D] ring-2 ring-[#D95D7D]/40 shadow-md'
                       : isHovered
-                      ? 'bg-[#F4F3F0] text-[#1A1A1A] border-[#D95D7D] -translate-y-0.5'
+                      ? 'bg-[#F4F3F0] text-[#1A1A1A] border-[#D95D7D] shadow-md -translate-y-0.5'
                       : isConnected && activeFocusId
-                      ? 'bg-[#F9F8F6] text-[#1A1A1A] border-[#D95D7D]'
-                      : 'bg-[#F9F8F6]/95 text-[#1A1A1A] border-[#E5E5E2] hover:border-[#1A1A1A]'
+                      ? 'bg-[#FFFFFF] text-[#1A1A1A] border-[#D95D7D]'
+                      : 'bg-[#F9F8F6]/95 text-[#1A1A1A] border-[#1A1A1A]/30 hover:border-[#1A1A1A]'
                   }`}
                 >
                   <span
@@ -632,7 +875,7 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
                         ? 'bg-[#D95D7D]'
                         : node.status === 'Daily Driver' || node.status === 'Live'
                         ? 'bg-[#D95D7D]'
-                        : 'bg-[#1A1A1A]/30'
+                        : 'bg-[#1A1A1A]/40'
                     }`}
                   ></span>
                   <div className="flex flex-col text-left">
@@ -654,144 +897,233 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
 
       {/* HTML Typographic Labels Overlaid over Projected 3D Node Positions (When WebGL is active) */}
       {webglSupported &&
-        (Object.entries(screenCoords) as [string, { x: number; y: number; visible: boolean }][]).map(
-          ([nodeId, coords]) => {
-            const node = NODES_CONFIG.find((n) => n.id === nodeId);
-            if (!node || !coords.visible) return null;
+        (Object.entries(screenCoords) as [
+          string,
+          { x: number; y: number; visible: boolean; depth: number }
+        ][]).map(([nodeId, coords]) => {
+          const node = NODES_CONFIG.find((n) => n.id === nodeId);
+          if (!node || !coords.visible) return null;
 
-            const isCore = node.id === 'ltstudio';
-            const isHovered = hoveredNodeId === nodeId;
-            const isSelected = selectedNodeId === nodeId;
-            const isConnected = connectedNodeIds.has(nodeId);
+          const isCore = node.id === 'ltstudio';
+          const isHovered = hoveredNodeId === nodeId;
+          const isSelected = selectedNodeId === nodeId;
+          const isConnected = connectedNodeIds.has(nodeId);
 
-            if (activeFilter !== 'all' && node.category !== 'Core' && node.category !== activeFilter) {
-              return null;
-            }
+          const matchesFilter =
+            activeFilter === 'all' || node.category === 'Core' || node.category === activeFilter;
 
-            const isDimmed =
-              (activeFocusId && !isConnected) ||
-              (activeFilter !== 'all' && node.category !== 'Core' && node.category !== activeFilter);
+          // Depth-based z-index (foreground nodes appear above background nodes)
+          const baseZIndex = Math.max(1, Math.round((1 - coords.depth) * 50));
+          const zIndex = isSelected ? 40 : isHovered ? 35 : isConnected && activeFocusId ? 30 : baseZIndex;
 
-            return (
+          return (
+            <div
+              key={nodeId}
+              data-no-drag="true"
+              style={{
+                left: `${coords.x}px`,
+                top: `${coords.y}px`,
+                transform: 'translate(-50%, -100%)',
+                zIndex
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseEnter={() => setHoveredNodeId(nodeId)}
+              onMouseLeave={() => setHoveredNodeId(null)}
+              onClick={(e) => handleNodeClick(nodeId, e)}
+              className={`absolute transition-all duration-200 pointer-events-auto cursor-pointer node-badge ${
+                !matchesFilter
+                  ? 'opacity-25 pointer-events-none scale-90'
+                  : isSelected
+                  ? 'opacity-100 scale-105'
+                  : isHovered
+                  ? 'opacity-100 scale-105'
+                  : isConnected && activeFocusId
+                  ? 'opacity-100 scale-100'
+                  : activeFocusId
+                  ? 'opacity-75 scale-95'
+                  : 'opacity-100 scale-100'
+              }`}
+            >
               <div
-                key={nodeId}
-                style={{
-                  left: `${coords.x}px`,
-                  top: `${coords.y}px`,
-                  transform: 'translate(-50%, -100%)'
-                }}
-                onMouseEnter={() => setHoveredNodeId(nodeId)}
-                onMouseLeave={() => setHoveredNodeId(null)}
-                onClick={() => handleNodeClick(nodeId)}
-                className={`absolute z-10 transition-all duration-200 cursor-pointer pointer-events-auto ${
-                  isDimmed ? 'opacity-30 scale-95' : 'opacity-100 scale-100'
+                className={`px-3 py-1.5 rounded-none border font-mono transition-all flex items-center gap-2 shadow-xs ${
+                  isCore
+                    ? 'bg-[#1A1A1A] text-[#F9F8F6] border-[#D95D7D]'
+                    : isSelected
+                    ? 'bg-[#1A1A1A] text-[#F9F8F6] border-[#D95D7D] ring-2 ring-[#D95D7D]/40 shadow-lg'
+                    : isHovered
+                    ? 'bg-[#F4F3F0] text-[#1A1A1A] border-[#D95D7D] shadow-md -translate-y-0.5'
+                    : isConnected && activeFocusId
+                    ? 'bg-[#FFFFFF] text-[#1A1A1A] border-[#D95D7D] shadow-xs'
+                    : 'bg-[#F9F8F6]/95 text-[#1A1A1A] border-[#1A1A1A]/30 hover:border-[#1A1A1A]'
                 }`}
               >
-                <div
-                  className={`px-3 py-1.5 rounded-none border font-mono transition-all flex items-center gap-2 shadow-xs ${
+                <span
+                  className={`w-2 h-2 rounded-full ${
                     isCore
-                      ? 'bg-[#1A1A1A] text-[#F9F8F6] border-[#D95D7D]'
-                      : isSelected
-                      ? 'bg-[#1A1A1A] text-[#F9F8F6] border-[#D95D7D] ring-2 ring-[#D95D7D]/30'
-                      : isHovered
-                      ? 'bg-[#F4F3F0] text-[#1A1A1A] border-[#D95D7D] shadow-md -translate-y-1'
-                      : isConnected && activeFocusId
-                      ? 'bg-[#F9F8F6] text-[#1A1A1A] border-[#D95D7D]'
-                      : 'bg-[#F9F8F6]/90 text-[#1A1A1A] border-[#E5E5E2] hover:border-[#1A1A1A]'
+                      ? 'bg-[#D95D7D] animate-pulse'
+                      : isSelected || isHovered
+                      ? 'bg-[#D95D7D]'
+                      : node.status === 'Daily Driver' || node.status === 'Live'
+                      ? 'bg-[#D95D7D]'
+                      : 'bg-[#1A1A1A]/40'
                   }`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      isCore
-                        ? 'bg-[#D95D7D] animate-pulse'
-                        : isSelected || isHovered
-                        ? 'bg-[#D95D7D]'
-                        : node.status === 'Daily Driver' || node.status === 'Live'
-                        ? 'bg-[#D95D7D]'
-                        : 'bg-[#1A1A1A]/30'
-                    }`}
-                  ></span>
-                  <div className="flex flex-col text-left">
-                    <span className="text-[11px] font-bold tracking-tight uppercase leading-tight">
-                      {node.name}
+                ></span>
+                <div className="flex flex-col text-left">
+                  <span className="text-[11px] font-bold tracking-tight uppercase leading-tight">
+                    {node.name}
+                  </span>
+                  {isSelected && (
+                    <span className="text-[9px] text-[#D95D7D] tracking-widest font-normal">
+                      {node.role}
                     </span>
-                    {isSelected && (
-                      <span className="text-[9px] text-[#D95D7D] tracking-widest font-normal">
-                        {node.role}
-                      </span>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
-            );
-          }
-        )}
+            </div>
+          );
+        })}
 
       {/* Top Controls Bar */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
-        <div className="flex items-center gap-2 bg-[#F9F8F6]/90 backdrop-blur-xs border border-[#1A1A1A] p-1 pointer-events-auto shadow-xs">
-          <span className="text-[10px] font-mono uppercase tracking-widest text-[#1A1A1A]/50 px-2 flex items-center gap-1">
-            <Filter className="w-3 h-3" />
+      <div 
+        onPointerDown={(e) => e.stopPropagation()}
+        className="absolute top-4 left-4 right-4 z-40 flex flex-wrap items-center justify-between gap-3 pointer-events-none"
+      >
+        {/* Domain Filters */}
+        <div 
+          data-no-drag="true"
+          onPointerDown={(e) => e.stopPropagation()}
+          className="flex items-center gap-1 bg-[#F9F8F6] border-2 border-[#1A1A1A] p-1 pointer-events-auto shadow-sm interactive-control"
+        >
+          <span className="text-[10px] font-mono uppercase tracking-widest text-[#1A1A1A]/60 px-2 flex items-center gap-1 font-bold">
+            <Filter className="w-3 h-3 text-[#D95D7D]" />
             {language === 'id' ? 'Ranah' : 'Domain'}:
           </span>
           <button
-            onClick={() => setActiveFilter('all')}
-            className={`px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors cursor-pointer ${
+            type="button"
+            data-no-drag="true"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveFilter('all');
+            }}
+            className={`px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider transition-colors cursor-pointer border ${
               activeFilter === 'all'
-                ? 'bg-[#1A1A1A] text-[#F9F8F6] font-bold'
-                : 'text-[#1A1A1A]/70 hover:bg-[#E5E5E2]'
+                ? 'bg-[#1A1A1A] text-[#F9F8F6] border-[#1A1A1A] font-bold shadow-xs'
+                : 'bg-transparent text-[#1A1A1A]/70 border-transparent hover:bg-[#E5E5E2]'
             }`}
           >
-            {language === 'id' ? 'Semua Node' : 'All Nodes'}
+            {language === 'id' ? 'Semua' : 'All'}
           </button>
           <button
-            onClick={() => setActiveFilter('Personal')}
-            className={`px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors cursor-pointer ${
+            type="button"
+            data-no-drag="true"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveFilter('Personal');
+            }}
+            className={`px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider transition-colors cursor-pointer border ${
               activeFilter === 'Personal'
-                ? 'bg-[#1A1A1A] text-[#F9F8F6] font-bold'
-                : 'text-[#1A1A1A]/70 hover:bg-[#E5E5E2]'
+                ? 'bg-[#1A1A1A] text-[#F9F8F6] border-[#1A1A1A] font-bold shadow-xs'
+                : 'bg-transparent text-[#1A1A1A]/70 border-transparent hover:bg-[#E5E5E2]'
             }`}
           >
             {language === 'id' ? 'Pribadi' : 'Personal'}
           </button>
           <button
-            onClick={() => setActiveFilter('Professional')}
-            className={`px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors cursor-pointer ${
+            type="button"
+            data-no-drag="true"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveFilter('Professional');
+            }}
+            className={`px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider transition-colors cursor-pointer border ${
               activeFilter === 'Professional'
-                ? 'bg-[#1A1A1A] text-[#F9F8F6] font-bold'
-                : 'text-[#1A1A1A]/70 hover:bg-[#E5E5E2]'
+                ? 'bg-[#1A1A1A] text-[#F9F8F6] border-[#1A1A1A] font-bold shadow-xs'
+                : 'bg-transparent text-[#1A1A1A]/70 border-transparent hover:bg-[#E5E5E2]'
             }`}
           >
             {language === 'id' ? 'Profesional' : 'Professional'}
           </button>
         </div>
 
-        <div className="hidden sm:flex items-center gap-2 bg-[#F9F8F6]/90 border border-[#E5E5E2] px-3 py-1 text-[10px] font-mono text-[#1A1A1A]/60">
-          {webglSupported ? (
-            <>
-              <Sparkles className="w-3 h-3 text-[#D95D7D]" />
-              <span>
-                {language === 'id'
-                  ? 'Interaktif 3D • Sorot & Klik untuk Detail Alur'
-                  : 'Interactive 3D • Hover & Click Node to Inspect Flow'}
-              </span>
-            </>
-          ) : (
-            <>
-              <Activity className="w-3 h-3 text-[#D95D7D]" />
-              <span>
-                {language === 'id'
-                  ? 'Diagram Sistem Ekosistem • Klik Node'
-                  : 'Ecosystem Graph Architecture • Click Node'}
-              </span>
-            </>
-          )}
+        {/* View & Navigation Controls (Drag Hint, Zoom, Reset) */}
+        <div 
+          onPointerDown={(e) => e.stopPropagation()}
+          className="flex items-center gap-2 pointer-events-auto"
+        >
+          {/* Interaction status hint */}
+          <div className="hidden sm:flex items-center gap-2 bg-[#F9F8F6] border border-[#1A1A1A]/40 px-3 py-1.5 text-[10px] font-mono text-[#1A1A1A]/70 shadow-xs">
+            <Move className="w-3 h-3 text-[#D95D7D]" />
+            <span>
+              {language === 'id'
+                ? 'Tarik untuk Memutar 3D • Klik Node untuk Detail'
+                : 'Drag to Orbit 3D • Click Node to Inspect'}
+            </span>
+          </div>
+
+          {/* Zoom In, Zoom Out, Reset Center */}
+          <div 
+            data-no-drag="true"
+            onPointerDown={(e) => e.stopPropagation()}
+            className="flex items-center bg-[#F9F8F6] border-2 border-[#1A1A1A] shadow-sm interactive-control"
+          >
+            <button
+              type="button"
+              data-no-drag="true"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleZoom(-2.0);
+              }}
+              title="Zoom In"
+              aria-label="Zoom In"
+              className="p-2 text-[#1A1A1A]/80 hover:text-[#1A1A1A] hover:bg-[#E5E5E2] border-r border-[#1A1A1A]/20 transition-colors cursor-pointer"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              data-no-drag="true"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleZoom(2.0);
+              }}
+              title="Zoom Out"
+              aria-label="Zoom Out"
+              className="p-2 text-[#1A1A1A]/80 hover:text-[#1A1A1A] hover:bg-[#E5E5E2] border-r border-[#1A1A1A]/20 transition-colors cursor-pointer"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              data-no-drag="true"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleResetView();
+              }}
+              title={language === 'id' ? 'Atur Ulang Tampilan' : 'Reset View'}
+              aria-label="Reset View"
+              className="p-2 text-[#1A1A1A]/80 hover:text-[#1A1A1A] hover:bg-[#E5E5E2] transition-colors cursor-pointer flex items-center gap-1.5 text-[10px] font-mono font-bold"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span className="hidden md:inline">{language === 'id' ? 'Reset' : 'Reset'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Floating Active Inspector Card overlay at Bottom Left */}
       {selectedNode && (
-        <div className="absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md z-20 bg-[#F9F8F6] border-2 border-[#1A1A1A] p-4 sm:p-5 shadow-xl transition-all duration-300 pointer-events-auto">
+        <div
+          data-no-drag="true"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          className="absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md z-50 bg-[#F9F8F6] border-2 border-[#1A1A1A] p-4 sm:p-5 shadow-2xl transition-all duration-300 pointer-events-auto"
+        >
           <div className="flex items-start justify-between gap-3 mb-2">
             <div>
               <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#1A1A1A]/50">
@@ -803,8 +1135,15 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
               <h3 className="text-lg font-bold text-[#1A1A1A] tracking-tight">{selectedNode.name}</h3>
             </div>
             <button
-              onClick={() => setSelectedNodeId(null)}
-              className="text-[#1A1A1A]/40 hover:text-[#1A1A1A] p-1 cursor-pointer text-xs font-mono"
+              type="button"
+              data-no-drag="true"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedNodeId(null);
+              }}
+              className="text-[#1A1A1A]/50 hover:text-[#1A1A1A] p-1 cursor-pointer text-xs font-mono"
+              title="Close inspector"
             >
               ✕
             </button>
@@ -828,9 +1167,15 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
               const connectedObj = NODES_CONFIG.find((n) => n.id === id);
               return (
                 <button
+                  type="button"
                   key={id}
-                  onClick={() => setSelectedNodeId(id)}
-                  className="px-2 py-0.5 bg-[#F4F3F0] border border-[#E5E5E2] text-[#1A1A1A] hover:border-[#D95D7D] hover:text-[#D95D7D] cursor-pointer"
+                  data-no-drag="true"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedNodeId(id);
+                  }}
+                  className="px-2 py-0.5 bg-[#F4F3F0] border border-[#E5E5E2] text-[#1A1A1A] hover:border-[#D95D7D] hover:text-[#D95D7D] cursor-pointer transition-colors"
                 >
                   {connectedObj ? connectedObj.name : id}
                 </button>
@@ -845,7 +1190,13 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
             </span>
             {selectedProductObj && onOpenProductDetail && (
               <button
-                onClick={() => onOpenProductDetail(selectedProductObj)}
+                type="button"
+                data-no-drag="true"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenProductDetail(selectedProductObj);
+                }}
                 className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#1A1A1A] text-[#F9F8F6] text-[10px] font-mono uppercase tracking-widest font-bold hover:bg-[#D95D7D] border border-[#1A1A1A] hover:border-[#D95D7D] transition-colors cursor-pointer"
               >
                 <span>
@@ -866,3 +1217,4 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
     </div>
   );
 };
+
