@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import { StatusBadge } from './StatusBadge';
 import { EcosystemMapNode } from '../types';
-import { Network, Layers } from 'lucide-react';
+import { Network, Layers, ArrowUpRight } from 'lucide-react';
 
 export const EcosystemArchitecture: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'Personal' | 'Professional'>('Personal');
@@ -239,6 +239,22 @@ export const EcosystemArchitecture: React.FC = () => {
                   <p className="text-xs text-[#1A1A1A]/60 font-mono mt-1">
                     {activeNodeData.role}
                   </p>
+
+                  {/* Published Domain */}
+                  {activeProductData.domain && (
+                    <div className="mt-2.5">
+                      <a
+                        href={activeProductData.liveUrl || `https://${activeProductData.domain}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#F4F3F0] hover:bg-[#1A1A1A] text-[#1A1A1A] hover:text-[#F9F8F6] border border-[#E5E5E2] hover:border-[#1A1A1A] text-[11px] font-mono transition-colors"
+                      >
+                        <span className="w-1.5 h-1.5 bg-[#10B981] rounded-full animate-pulse"></span>
+                        <span>{activeProductData.domain}</span>
+                        <ArrowUpRight className="w-3 h-3" />
+                      </a>
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-4 bg-[#F4F3F0] border border-[#E5E5E2]">
@@ -271,18 +287,31 @@ export const EcosystemArchitecture: React.FC = () => {
                   </div>
                 )}
 
-                <div className="pt-4 border-t border-[#E5E5E2] flex items-center justify-between text-[10px] font-mono text-[#1A1A1A]">
+                <div className="pt-4 border-t border-[#E5E5E2] flex items-center justify-between text-[10px] font-mono text-[#1A1A1A] flex-wrap gap-2">
                   <span>
                     {language === 'id'
                       ? `Tautan Terhubung: ${activeNodeData.connectsTo.length + activeNodeData.connectedFrom.length}`
                       : `Connected Links: ${activeNodeData.connectsTo.length + activeNodeData.connectedFrom.length}`}
                   </span>
-                  <a
-                    href="#products"
-                    className="underline font-bold uppercase tracking-wider hover:text-[#D95D7D]"
-                  >
-                    {language === 'id' ? 'Lihat Detail →' : 'View Product →'}
-                  </a>
+                  <div className="flex items-center gap-3">
+                    {activeProductData.liveUrl && (
+                      <a
+                        href={activeProductData.liveUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1 bg-[#1A1A1A] text-[#F9F8F6] hover:bg-[#D95D7D] font-bold uppercase tracking-wider transition-colors inline-flex items-center gap-1"
+                      >
+                        <span>{language === 'id' ? 'Buka Aplikasi' : 'Launch App'}</span>
+                        <ArrowUpRight className="w-3 h-3" />
+                      </a>
+                    )}
+                    <a
+                      href="#products"
+                      className="underline font-bold uppercase tracking-wider hover:text-[#D95D7D]"
+                    >
+                      {language === 'id' ? 'Lihat Detail →' : 'View Product →'}
+                    </a>
+                  </div>
                 </div>
               </motion.div>
             ) : (

@@ -24,6 +24,8 @@ export interface Product {
   architectureNote?: string;
   connectedTo?: string[];
   isSubdued?: boolean;
+  domain?: string;
+  liveUrl?: string;
 }
 
 export interface MantraStageData {
@@ -56,4 +58,6 @@ export interface EcosystemMapNode {
   connectsTo: string[];
   connectedFrom: string[];
   level: number; // For layout positioning
+  domain?: string;
+  liveUrl?: string;
 }

@@ -4,7 +4,7 @@ import { Product } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { WorkflowVisualization } from './WorkflowVisualization';
 import { useLanguage } from '../context/LanguageContext';
-import { X, Cpu, ShieldCheck, Database, Check } from 'lucide-react';
+import { X, Cpu, ShieldCheck, Database, Check, ArrowUpRight } from 'lucide-react';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -51,7 +51,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </h2>
             </div>
 
-            <div className="flex items-center gap-3 ml-auto sm:ml-0">
+            <div className="flex items-center gap-3 ml-auto sm:ml-0 flex-wrap">
+              {product.liveUrl && (
+                <a
+                  href={product.liveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1A1A1A] hover:bg-[#D95D7D] text-[#F9F8F6] text-[11px] font-mono uppercase tracking-wider font-bold border border-[#1A1A1A] hover:border-[#D95D7D] transition-colors"
+                >
+                  <span className="w-1.5 h-1.5 bg-[#10B981] rounded-full animate-pulse"></span>
+                  <span>{language === 'id' ? 'Buka Aplikasi' : 'Launch App'}</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </a>
+              )}
               <StatusBadge status={product.status} />
               <button
                 onClick={onClose}
@@ -67,8 +79,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <div className="p-4 sm:p-8 space-y-6 sm:space-y-10">
             {/* Tagline & Core Philosophy */}
             <div className="p-4 sm:p-6 bg-[#F4F3F0] border border-[#E5E5E2] space-y-2">
-              <div className="text-[10px] font-mono uppercase tracking-widest text-[#1A1A1A]/50">
-                {language === 'id' ? 'Pernyataan Filosofi' : 'Philosophy Statement'}
+              <div className="flex items-center justify-between">
+                <div className="text-[10px] font-mono uppercase tracking-widest text-[#1A1A1A]/50">
+                  {language === 'id' ? 'Pernyataan Filosofi' : 'Philosophy Statement'}
+                </div>
+                {product.domain && (
+                  <span className="text-[11px] font-mono text-[#1A1A1A]/70 flex items-center gap-1">
+                    <span className="text-[#1A1A1A]/40 font-normal">Domain:</span> {product.domain}
+                  </span>
+                )}
               </div>
               <p className="text-base sm:text-lg font-serif italic text-[#1A1A1A]">
                 "{product.tagline}"
@@ -170,7 +189,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
             <button
               onClick={onClose}
-              className="px-6 py-2.5 bg-[#1A1A1A] text-[#F9F8F6] text-xs font-mono uppercase tracking-widest font-bold border border-[#1A1A1A] hover:bg-[#F9F8F6] hover:text-[#1A1A1A] transition-colors cursor-pointer w-full sm:w-auto text-center"
+              className="px-6 py-2.5 bg-[#1A1A1A] text-[#F9F8F6] text-xs font-mono uppercase tracking-widest font-bold border border-[#1A1A1A] hover:bg-[#D95D7D] hover:border-[#D95D7D] transition-colors cursor-pointer text-center"
             >
               {language === 'id' ? 'Tutup Inspektur' : 'Close Inspector'}
             </button>

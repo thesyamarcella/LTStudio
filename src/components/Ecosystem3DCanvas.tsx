@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import * as THREE from 'three';
-import { ArrowRight, Activity, Sparkles, Filter, RotateCcw, ZoomIn, ZoomOut, Move } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Activity, Sparkles, Filter, RotateCcw, ZoomIn, ZoomOut, Move } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { Product } from '../types';
 
@@ -15,6 +15,8 @@ interface Node3DData {
   connectedTo: string[];
   // 2D Normalized Coordinates (0-100%) for Fallback Vector Graph
   fallback2D: { x: number; y: number };
+  domain?: string;
+  liveUrl?: string;
 }
 
 interface ConnectionData {
@@ -45,6 +47,8 @@ const NODES_CONFIG: Node3DData[] = [
     role: 'Central Household Hub',
     tagline: 'One home. One source of truth.',
     status: 'Daily Driver',
+    domain: 'saturumah.pages.dev',
+    liveUrl: 'https://saturumah.pages.dev',
     position: new THREE.Vector3(-3.0, 0.9, 0.8),
     connectedTo: ['everafter', 'our', 'littlebetter', 'dayone'],
     fallback2D: { x: 30, y: 38 }
@@ -56,6 +60,8 @@ const NODES_CONFIG: Node3DData[] = [
     role: 'Milestone Event Management',
     tagline: 'Wedding & Event Engine',
     status: 'Daily Driver',
+    domain: 'everafter-os.pages.dev',
+    liveUrl: 'https://everafter-os.pages.dev',
     position: new THREE.Vector3(-4.6, 2.3, -0.6),
     connectedTo: ['saturumah'],
     fallback2D: { x: 14, y: 22 }
@@ -88,7 +94,9 @@ const NODES_CONFIG: Node3DData[] = [
     category: 'Personal',
     role: 'Travel Contextualizer',
     tagline: 'Itinerary & Route Engine',
-    status: 'In Development',
+    status: 'Live',
+    domain: 'getaway-os.pages.dev',
+    liveUrl: 'https://getaway-os.pages.dev',
     position: new THREE.Vector3(-4.2, -2.9, -0.5),
     connectedTo: ['littlebetter'],
     fallback2D: { x: 10, y: 86 }
@@ -1151,6 +1159,25 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
 
           <p className="text-xs font-serif italic text-[#1A1A1A] mb-2">"{selectedNode.tagline}"</p>
 
+          {/* Published Domain Badge */}
+          {selectedNode.domain && (
+            <div className="mb-2.5">
+              <a
+                href={selectedNode.liveUrl || `https://${selectedNode.domain}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-no-drag="true"
+                onPointerDown={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#F4F3F0] hover:bg-[#1A1A1A] text-[#1A1A1A] hover:text-[#F9F8F6] border border-[#E5E5E2] hover:border-[#1A1A1A] text-[10px] font-mono font-medium transition-colors"
+                title={`Open ${selectedNode.domain}`}
+              >
+                <span className="w-1.5 h-1.5 bg-[#10B981] rounded-full animate-pulse"></span>
+                <span>{selectedNode.domain}</span>
+                <ArrowUpRight className="w-3 h-3" />
+              </a>
+            </div>
+          )}
+
           <p className="text-[11px] text-[#1A1A1A]/70 leading-relaxed font-sans mb-3">
             {selectedNode.role}.{' '}
             {language === 'id'
@@ -1183,28 +1210,43 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
             })}
           </div>
 
-          {/* Action button */}
-          <div className="flex items-center justify-between gap-2">
+          {/* Action buttons */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <span className="text-[10px] font-mono text-[#1A1A1A]/40 uppercase tracking-wider">
               [ {language === 'id' ? 'Alur Berlanjut' : 'Continuous Flow'} ]
             </span>
-            {selectedProductObj && onOpenProductDetail && (
-              <button
-                type="button"
-                data-no-drag="true"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenProductDetail(selectedProductObj);
-                }}
-                className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#1A1A1A] text-[#F9F8F6] text-[10px] font-mono uppercase tracking-widest font-bold hover:bg-[#D95D7D] border border-[#1A1A1A] hover:border-[#D95D7D] transition-colors cursor-pointer"
-              >
-                <span>
-                  {language === 'id' ? `Jelajahi ${selectedNode.name}` : `Explore ${selectedNode.name}`}
-                </span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {selectedNode.liveUrl && (
+                <a
+                  href={selectedNode.liveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-no-drag="true"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[#F4F3F0] text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-[#F9F8F6] text-[10px] font-mono uppercase tracking-wider font-bold border border-[#1A1A1A] transition-colors"
+                >
+                  <span>{language === 'id' ? 'Buka Aplikasi' : 'Launch App'}</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </a>
+              )}
+              {selectedProductObj && onOpenProductDetail && (
+                <button
+                  type="button"
+                  data-no-drag="true"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenProductDetail(selectedProductObj);
+                  }}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#1A1A1A] text-[#F9F8F6] text-[10px] font-mono uppercase tracking-widest font-bold hover:bg-[#D95D7D] border border-[#1A1A1A] hover:border-[#D95D7D] transition-colors cursor-pointer"
+                >
+                  <span>
+                    {language === 'id' ? `Jelajahi ${selectedNode.name}` : `Explore ${selectedNode.name}`}
+                  </span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

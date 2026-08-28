@@ -14,8 +14,8 @@ export const Footer: React.FC = () => {
           {/* Main Statement */}
           <div className="md:col-span-6 space-y-4">
             <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest font-bold">
-              <span className="w-2 h-2 bg-[#D95D7D]"></span>
-              LTStudio
+              <img src="/favicon.svg" alt="LTStudio Logo" className="w-4 h-4 rounded-[3px]" />
+              <span>LTStudio</span>
             </div>
             <p className="text-lg sm:text-xl font-light tracking-tight text-[#1A1A1A]/90 max-w-md">
               {t.footer.statement}

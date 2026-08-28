@@ -233,7 +233,7 @@ const translationsEN: Translations = {
     filterPersonal: 'Personal Life',
     filterProfessional: 'Professional',
     connectedWorkflowChain: 'Connected Workflow Chain',
-    openProduct: 'Open Product',
+    openProduct: 'Inspect Flow',
     statusLabels: {
       'Daily Driver': 'Daily Driver',
       'Live': 'Live',
@@ -374,7 +374,7 @@ const translationsID: Translations = {
     filterPersonal: 'Kehidupan Pribadi',
     filterProfessional: 'Karya Profesional',
     connectedWorkflowChain: 'Rantai Alur Kerja Terhubung',
-    openProduct: 'Buka Detail Produk',
+    openProduct: 'Detail Alur',
     statusLabels: {
       'Daily Driver': 'Penggunaan Harian',
       'Live': 'Aktif',

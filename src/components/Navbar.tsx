@@ -35,10 +35,10 @@ export const Navbar: React.FC = () => {
         {/* Left Brand */}
         <a
           href="#"
-          className="group flex items-center gap-2 text-xl font-bold tracking-tighter text-[#1A1A1A]"
+          className="group flex items-center gap-2.5 text-xl font-bold tracking-tighter text-[#1A1A1A]"
         >
-          <span className="w-2.5 h-2.5 bg-[#D95D7D] transition-transform group-hover:scale-125"></span>
-          LTStudio
+          <img src="/favicon.svg" alt="LTStudio Logo" className="w-5 h-5 rounded-[4px] transition-transform group-hover:scale-110 shadow-xs" />
+          <span>LTStudio</span>
         </a>
 
         {/* Desktop Nav Links */}

@@ -3,7 +3,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { StatusBadge } from './StatusBadge';
 import { WorkflowVisualization } from './WorkflowVisualization';
 import { Product } from '../types';
-import { ArrowRight, Layers } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Layers, Globe } from 'lucide-react';
 
 interface ProductsProps {
   onOpenProduct: (product: Product) => void;
@@ -93,12 +93,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const { t, language } = useLanguage();
   const isSubdued = product.isSubdued || product.status === 'Future';
   const isDailyDriver = product.status === 'Daily Driver';
+  const isLive = product.status === 'Live' || Boolean(product.liveUrl);
 
   return (
     <div
       className={`p-5 sm:p-8 bg-[#F9F8F6] border relative overflow-hidden flex flex-col justify-between transition-all duration-200 group ${
         isDailyDriver
           ? 'border-[#D95D7D]/60 hover:border-[#D95D7D] shadow-xs'
+          : isLive
+          ? 'border-[#1A1A1A]/40 hover:border-[#D95D7D] shadow-xs'
           : isSubdued
           ? 'border-[#E5E5E2] opacity-85 hover:opacity-100 hover:border-[#D95D7D]/50'
           : 'border-[#1A1A1A]/20 hover:border-[#D95D7D] shadow-xs'
@@ -111,7 +114,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
       <div>
         {/* Top Header */}
-        <div className="flex flex-wrap items-start justify-between gap-3 mb-5 sm:mb-6">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
           <div>
             <span className="text-[10px] font-mono uppercase tracking-widest text-[#1A1A1A]/50 flex items-center gap-1.5 mb-1">
               {isDailyDriver && <span className="w-1.5 h-1.5 bg-[#D95D7D] rounded-full inline-block"></span>}
@@ -123,8 +126,27 @@ const ProductCard: React.FC<ProductCardProps> = ({
               {product.name}
             </h4>
           </div>
-          <StatusBadge status={product.status} />
+          <div className="flex flex-col items-end gap-1.5">
+            <StatusBadge status={product.status} />
+          </div>
         </div>
+
+        {/* Live Published Domain Badge */}
+        {product.domain && product.liveUrl && (
+          <div className="mb-4">
+            <a
+              href={product.liveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-2.5 py-1 bg-[#F4F3F0] hover:bg-[#1A1A1A] text-[#1A1A1A] hover:text-[#F9F8F6] border border-[#E5E5E2] hover:border-[#1A1A1A] text-[11px] font-mono font-medium transition-all group/domain"
+              title={`Visit ${product.name} at ${product.domain}`}
+            >
+              <span className="w-1.5 h-1.5 bg-[#10B981] rounded-full animate-pulse"></span>
+              <span>{product.domain}</span>
+              <ArrowUpRight className="w-3 h-3 text-[#1A1A1A]/60 group-hover/domain:text-[#F9F8F6]" />
+            </a>
+          </div>
+        )}
 
         {/* Tagline / Philosophy */}
         <p className="text-sm font-medium text-[#1A1A1A] mb-3 sm:mb-4 italic font-serif">
@@ -148,21 +170,37 @@ const ProductCard: React.FC<ProductCardProps> = ({
         )}
       </div>
 
-      {/* CTA Button */}
+      {/* CTA Buttons */}
       <div className="pt-4 sm:pt-6 border-t border-[#E5E5E2] flex flex-wrap items-center justify-between gap-3">
         <span className="text-[10px] font-mono uppercase tracking-wider text-[#1A1A1A]/50">
           {product.status === 'Future'
             ? (language === 'id' ? 'Node Konseptual' : 'Conceptual Node')
+            : product.domain
+            ? (language === 'id' ? 'Tersedia Online' : 'Published & Live')
             : (language === 'id' ? 'Modul Ekosistem' : 'Ecosystem Module')}
         </span>
 
-        <button
-          onClick={onOpenProduct}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 bg-[#1A1A1A] text-[#F9F8F6] text-[11px] font-mono uppercase tracking-widest font-bold hover:bg-[#D95D7D] hover:text-[#F9F8F6] border border-[#1A1A1A] hover:border-[#D95D7D] transition-all cursor-pointer w-full sm:w-auto"
-        >
-          <span>{t.productsSec.openProduct}</span>
-          <ArrowRight className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {product.liveUrl && (
+            <a
+              href={product.liveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-[#F9F8F6] text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-[#F9F8F6] text-[11px] font-mono uppercase tracking-wider font-bold border border-[#1A1A1A] transition-all flex-1 sm:flex-initial"
+            >
+              <span>{language === 'id' ? 'Buka Aplikasi' : 'Launch App'}</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </a>
+          )}
+
+          <button
+            onClick={onOpenProduct}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#1A1A1A] text-[#F9F8F6] text-[11px] font-mono uppercase tracking-widest font-bold hover:bg-[#D95D7D] hover:text-[#F9F8F6] border border-[#1A1A1A] hover:border-[#D95D7D] transition-all cursor-pointer flex-1 sm:flex-initial"
+          >
+            <span>{t.productsSec.openProduct}</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
     </div>
   );
