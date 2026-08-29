@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import * as THREE from 'three';
 import { ArrowRight, ArrowUpRight, Activity, Sparkles, Filter, RotateCcw, ZoomIn, ZoomOut, Move } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { AppLogo, APP_LOGO_META } from './AppLogo';
 import { Product } from '../types';
 
 interface Node3DData {
@@ -1132,15 +1133,32 @@ export const Ecosystem3DCanvas: React.FC<Ecosystem3DCanvasProps> = ({ onOpenProd
           onClick={(e) => e.stopPropagation()}
           className="absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md z-50 bg-[#F9F8F6] border-2 border-[#1A1A1A] p-4 sm:p-5 shadow-2xl transition-all duration-300 pointer-events-auto"
         >
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <div>
-              <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#1A1A1A]/50">
-                <span className="w-1.5 h-1.5 bg-[#D95D7D] rounded-full"></span>
-                <span>{selectedNode.category} Node</span>
-                <span>•</span>
-                <span className="text-[#D95D7D] font-bold">{selectedNode.status}</span>
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="flex items-center gap-3">
+              <AppLogo id={selectedNode.id} size={44} className="shrink-0" />
+              <div>
+                <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#1A1A1A]/50">
+                  <span className="w-1.5 h-1.5 bg-[#D95D7D] rounded-full"></span>
+                  <span>{selectedNode.category} Node</span>
+                  <span>•</span>
+                  <span className="text-[#D95D7D] font-bold">{selectedNode.status}</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-lg font-bold text-[#1A1A1A] tracking-tight">{selectedNode.name}</h3>
+                  {APP_LOGO_META[selectedNode.id.toLowerCase()] && (
+                    <span
+                      className="text-[9px] font-mono font-bold tracking-widest uppercase px-1.5 py-0.5 border"
+                      style={{
+                        color: APP_LOGO_META[selectedNode.id.toLowerCase()].accentColor,
+                        borderColor: `${APP_LOGO_META[selectedNode.id.toLowerCase()].accentColor}40`,
+                        backgroundColor: `${APP_LOGO_META[selectedNode.id.toLowerCase()].accentColor}0D`
+                      }}
+                    >
+                      {APP_LOGO_META[selectedNode.id.toLowerCase()].subtitle}
+                    </span>
+                  )}
+                </div>
               </div>
-              <h3 className="text-lg font-bold text-[#1A1A1A] tracking-tight">{selectedNode.name}</h3>
             </div>
             <button
               type="button"

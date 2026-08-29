@@ -2,6 +2,7 @@ import React from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { StatusBadge } from './StatusBadge';
 import { WorkflowVisualization } from './WorkflowVisualization';
+import { AppLogo, APP_LOGO_META } from './AppLogo';
 import { Product } from '../types';
 import { ArrowRight, ArrowUpRight, Layers, Globe } from 'lucide-react';
 
@@ -114,19 +115,40 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
       <div>
         {/* Top Header */}
-        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-          <div>
-            <span className="text-[10px] font-mono uppercase tracking-widest text-[#1A1A1A]/50 flex items-center gap-1.5 mb-1">
-              {isDailyDriver && <span className="w-1.5 h-1.5 bg-[#D95D7D] rounded-full inline-block"></span>}
-              {product.category === 'Personal Life'
-                ? (language === 'id' ? 'Kehidupan Pribadi' : 'Personal Life')
-                : (language === 'id' ? 'Kehidupan Profesional' : 'Professional Life')}
-            </span>
-            <h4 className="text-xl sm:text-2xl font-bold text-[#1A1A1A] tracking-tight group-hover:text-[#1A1A1A]">
-              {product.name}
-            </h4>
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3.5">
+            <AppLogo
+              id={product.id}
+              size={48}
+              className="shrink-0 transition-transform duration-200 group-hover:scale-105"
+            />
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-[#1A1A1A]/50 flex items-center gap-1.5 mb-1">
+                {isDailyDriver && <span className="w-1.5 h-1.5 bg-[#D95D7D] rounded-full inline-block"></span>}
+                {product.category === 'Personal Life'
+                  ? (language === 'id' ? 'Kehidupan Pribadi' : 'Personal Life')
+                  : (language === 'id' ? 'Kehidupan Profesional' : 'Professional Life')}
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="text-xl sm:text-2xl font-bold text-[#1A1A1A] tracking-tight group-hover:text-[#1A1A1A]">
+                  {product.name}
+                </h4>
+                {APP_LOGO_META[product.id.toLowerCase()] && (
+                  <span
+                    className="text-[9px] font-mono font-bold tracking-widest uppercase px-1.5 py-0.5 border"
+                    style={{
+                      color: APP_LOGO_META[product.id.toLowerCase()].accentColor,
+                      borderColor: `${APP_LOGO_META[product.id.toLowerCase()].accentColor}40`,
+                      backgroundColor: `${APP_LOGO_META[product.id.toLowerCase()].accentColor}0D`
+                    }}
+                  >
+                    {APP_LOGO_META[product.id.toLowerCase()].subtitle}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col items-end gap-1.5">
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
             <StatusBadge status={product.status} />
           </div>
         </div>

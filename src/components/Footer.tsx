@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowUpRight, Github, Mail } from 'lucide-react';
 import { ContactModal } from './ContactModal';
 import { useLanguage } from '../context/LanguageContext';
+import { AppLogo } from './AppLogo';
 
 export const Footer: React.FC = () => {
   const [contactOpen, setContactOpen] = useState(false);
@@ -13,8 +14,8 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start pb-12 border-b border-[#E5E5E2]">
           {/* Main Statement */}
           <div className="md:col-span-6 space-y-4">
-            <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest font-bold">
-              <img src="/favicon.svg" alt="LTStudio Logo" className="w-4 h-4 rounded-[3px]" />
+            <div className="flex items-center gap-2.5 font-mono text-xs uppercase tracking-widest font-bold">
+              <AppLogo id="ltstudio" size={22} className="rounded-[4px] shadow-2xs" />
               <span>LTStudio</span>
             </div>
             <p className="text-lg sm:text-xl font-light tracking-tight text-[#1A1A1A]/90 max-w-md">

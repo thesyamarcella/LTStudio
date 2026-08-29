@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import { StatusBadge } from './StatusBadge';
+import { AppLogo, APP_LOGO_META } from './AppLogo';
 import { EcosystemMapNode } from '../types';
 import { Network, Layers, ArrowUpRight } from 'lucide-react';
 
@@ -229,32 +230,49 @@ export const EcosystemArchitecture: React.FC = () => {
                 transition={{ duration: 0.2 }}
                 className="space-y-6"
               >
-                <div>
-                  <div className="text-[10px] font-mono uppercase text-[#1A1A1A]/40 mb-1">
-                    {language === 'id' ? 'Identitas Sistem' : 'System Identity'}
-                  </div>
-                  <h3 className="text-2xl font-bold text-[#1A1A1A]">
-                    {activeProductData.name}
-                  </h3>
-                  <p className="text-xs text-[#1A1A1A]/60 font-mono mt-1">
-                    {activeNodeData.role}
-                  </p>
-
-                  {/* Published Domain */}
-                  {activeProductData.domain && (
-                    <div className="mt-2.5">
-                      <a
-                        href={activeProductData.liveUrl || `https://${activeProductData.domain}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#F4F3F0] hover:bg-[#1A1A1A] text-[#1A1A1A] hover:text-[#F9F8F6] border border-[#E5E5E2] hover:border-[#1A1A1A] text-[11px] font-mono transition-colors"
-                      >
-                        <span className="w-1.5 h-1.5 bg-[#10B981] rounded-full animate-pulse"></span>
-                        <span>{activeProductData.domain}</span>
-                        <ArrowUpRight className="w-3 h-3" />
-                      </a>
+                <div className="flex items-start gap-4">
+                  <AppLogo id={activeProductData.id} size={56} className="shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-mono uppercase text-[#1A1A1A]/40 mb-0.5">
+                      {language === 'id' ? 'Identitas Sistem' : 'System Identity'}
                     </div>
-                  )}
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <h3 className="text-2xl font-bold text-[#1A1A1A]">
+                        {activeProductData.name}
+                      </h3>
+                      {APP_LOGO_META[activeProductData.id.toLowerCase()] && (
+                        <span
+                          className="text-[9px] font-mono font-bold tracking-widest uppercase px-1.5 py-0.5 border"
+                          style={{
+                            color: APP_LOGO_META[activeProductData.id.toLowerCase()].accentColor,
+                            borderColor: `${APP_LOGO_META[activeProductData.id.toLowerCase()].accentColor}40`,
+                            backgroundColor: `${APP_LOGO_META[activeProductData.id.toLowerCase()].accentColor}0D`
+                          }}
+                        >
+                          {APP_LOGO_META[activeProductData.id.toLowerCase()].subtitle}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-[#1A1A1A]/60 font-mono mt-0.5">
+                      {activeNodeData.role}
+                    </p>
+
+                    {/* Published Domain */}
+                    {activeProductData.domain && (
+                      <div className="mt-2">
+                        <a
+                          href={activeProductData.liveUrl || `https://${activeProductData.domain}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#F4F3F0] hover:bg-[#1A1A1A] text-[#1A1A1A] hover:text-[#F9F8F6] border border-[#E5E5E2] hover:border-[#1A1A1A] text-[11px] font-mono transition-colors"
+                        >
+                          <span className="w-1.5 h-1.5 bg-[#10B981] rounded-full animate-pulse"></span>
+                          <span>{activeProductData.domain}</span>
+                          <ArrowUpRight className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="p-4 bg-[#F4F3F0] border border-[#E5E5E2]">
@@ -363,7 +381,7 @@ const NodeBlock: React.FC<NodeBlockProps> = ({
           : ''
       } ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
     >
-      <div className="flex items-center justify-between gap-2 mb-1">
+      <div className="flex items-center justify-between gap-2 mb-2">
         <span className="text-[9px] font-mono uppercase tracking-widest opacity-60">
           {node.category} Node
         </span>
@@ -373,9 +391,14 @@ const NodeBlock: React.FC<NodeBlockProps> = ({
           }`}
         ></span>
       </div>
-      <div className="text-sm font-bold tracking-tight">{node.name}</div>
-      <div className="text-[10px] font-mono opacity-70 truncate mt-0.5">
-        {node.role}
+      <div className="flex items-center gap-2.5">
+        <AppLogo id={node.id} size={32} className="shrink-0 shadow-2xs" />
+        <div className="min-w-0">
+          <div className="text-sm font-bold tracking-tight truncate">{node.name}</div>
+          <div className="text-[10px] font-mono opacity-70 truncate">
+            {node.role}
+          </div>
+        </div>
       </div>
     </div>
   );

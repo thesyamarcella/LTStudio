@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Product } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { WorkflowVisualization } from './WorkflowVisualization';
+import { AppLogo, APP_LOGO_META } from './AppLogo';
 import { useLanguage } from '../context/LanguageContext';
 import { X, Cpu, ShieldCheck, Database, Check, ArrowUpRight } from 'lucide-react';
 
@@ -21,6 +22,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   if (!product) return null;
 
   const currentWorkflowDetail = product.workflowDetails?.[selectedWorkflowStep];
+  const logoMeta = APP_LOGO_META[product.id.toLowerCase()];
 
   return (
     <AnimatePresence>
@@ -34,21 +36,38 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         >
           {/* Header */}
           <div className="sticky top-0 bg-[#F9F8F6] z-20 border-b border-[#E5E5E2] p-4 sm:p-8 flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1.5">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-[#1A1A1A]/50">
-                  LTStudio System Module
-                </span>
-                <span className="text-[#1A1A1A]/20 hidden sm:inline">•</span>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-[#1A1A1A]">
-                  {product.category === 'Personal Life'
-                    ? (language === 'id' ? 'Kehidupan Pribadi' : 'Personal Life')
-                    : (language === 'id' ? 'Kehidupan Profesional' : 'Professional Life')}
-                </span>
+            <div className="flex items-center gap-4">
+              <AppLogo id={product.id} size={56} className="shrink-0" />
+              <div>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-[#1A1A1A]/50">
+                    LTStudio System Module
+                  </span>
+                  <span className="text-[#1A1A1A]/20 hidden sm:inline">•</span>
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-[#1A1A1A]">
+                    {product.category === 'Personal Life'
+                      ? (language === 'id' ? 'Kehidupan Pribadi' : 'Personal Life')
+                      : (language === 'id' ? 'Kehidupan Profesional' : 'Professional Life')}
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2.5 flex-wrap">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-[#1A1A1A] tracking-tight">
+                    {product.name}
+                  </h2>
+                  {logoMeta && (
+                    <span
+                      className="text-[10px] font-mono font-bold tracking-widest uppercase px-2 py-0.5 border"
+                      style={{
+                        color: logoMeta.accentColor,
+                        borderColor: `${logoMeta.accentColor}40`,
+                        backgroundColor: `${logoMeta.accentColor}0D`
+                      }}
+                    >
+                      {logoMeta.subtitle}
+                    </span>
+                  )}
+                </div>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-[#1A1A1A] tracking-tight">
-                {product.name}
-              </h2>
             </div>
 
             <div className="flex items-center gap-3 ml-auto sm:ml-0 flex-wrap">

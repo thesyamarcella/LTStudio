@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, ArrowUpRight, Globe } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { AppLogo } from './AppLogo';
 
 export const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -37,7 +38,11 @@ export const Navbar: React.FC = () => {
           href="#"
           className="group flex items-center gap-2.5 text-xl font-bold tracking-tighter text-[#1A1A1A]"
         >
-          <img src="/favicon.svg" alt="LTStudio Logo" className="w-5 h-5 rounded-[4px] transition-transform group-hover:scale-110 shadow-xs" />
+          <AppLogo
+            id="ltstudio"
+            size={24}
+            className="rounded-[5px] transition-transform group-hover:scale-110 shadow-2xs"
+          />
           <span>LTStudio</span>
         </a>
 
